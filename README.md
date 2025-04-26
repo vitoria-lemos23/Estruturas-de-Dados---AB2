@@ -2,11 +2,11 @@
 
 **Professor:** Márcio Ribeiro
 
-**Grupo:**
-Giovanna Alves Barbosa de Oliveira
-José Gabriel de Almeida Vieira
-Leonardo José da Silva Filho
-Vitória Lemos Pereira
+**Grupo:**  
+Giovanna Alves Barbosa de Oliveira  
+José Gabriel de Almeida Vieira  
+Leonardo José da Silva Filho  
+Vitória Lemos Pereira  
 
 **Projeto 1:** Implemenntação do Algoritmo de Huffman  
 **Projeto 2:** Implementação de um SAT Solver  
