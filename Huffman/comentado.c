@@ -7,15 +7,15 @@
 #define TAMANHO_TABELA 256      // Quantidade de símbolos possíveis (ASCII estendido)
 #define TAMANHO_BUFFER 4096     // Tamanho do buffer de leitura
 
-// ============================
-// ESTRUTURAS DE DADOS
-// ============================
+// ====================================================================
+// Estruturas utilizadas
+// ====================================================================
 
 // Nó da árvore de Huffman
 typedef struct No {
     unsigned char simbolo;           // Símbolo armazenado (usado apenas nas folhas)
     unsigned int frequencia;         // Frequência do símbolo
-    struct No *esquerda, *direita;   // Ponteiros para os filhos
+    struct No *esquerda, *direita;   // Ponteiros para os filhos (se for um nó interno)
     struct No *proximo;              // Usado na lista de prioridade
 } No;
 
@@ -33,9 +33,9 @@ typedef struct {
     int totalBits;                   // Total de bits já escritos
 } ControladorBits;
 
-// ============================
-// FUNÇÕES DE SUPORTE À ÁRVORE
-// ============================
+// ====================================================================
+// Funções aulxiliares para a montagem da arvore
+// ====================================================================
 
 // Inicializa lista de prioridade
 void inicializarLista(ListaPrioridade *lista) {
@@ -45,10 +45,12 @@ void inicializarLista(ListaPrioridade *lista) {
 
 // Insere um nó na lista ordenadamente por frequência
 void inserirOrdenado(No *no, ListaPrioridade *lista) {
+    //se a frequencia do nó for menor do que a frequancia da cabeça da lista, o nó fica no começo da lista
     if (lista->inicio == NULL || no->frequencia < lista->inicio->frequencia) {
         no->proximo = lista->inicio;
         lista->inicio = no;
     } else {
+        //caso contrario vais comparando as frequencias até encontrar a certa
         No *atual = lista->inicio;
         while (atual->proximo && atual->proximo->frequencia <= no->frequencia)
             atual = atual->proximo;
@@ -59,6 +61,7 @@ void inserirOrdenado(No *no, ListaPrioridade *lista) {
 }
 
 // Remove e retorna o primeiro nó (menor frequência)
+//utilizada quando vai fazer a soma das frequencias e gerar um novo nó
 No *removerPrimeiro(ListaPrioridade *lista) {
     if (!lista->inicio) return NULL;
     No *removido = lista->inicio;
@@ -77,7 +80,10 @@ No *criarFolha(unsigned char simbolo, unsigned int frequencia) {
 
 // Cria um nó interno unindo dois nós
 No *criarNoInterno(No *esquerdo, No *direito) {
+    //cria um novo nó
     No *novo = malloc(sizeof(No));
+
+    //nova frequencia é a soma das duas frequencias passadas
     novo->frequencia = esquerdo->frequencia + direito->frequencia;
     novo->esquerda = esquerdo;
     novo->direita = direito;
@@ -86,81 +92,113 @@ No *criarNoInterno(No *esquerdo, No *direito) {
 
 // Conta a frequência de cada byte no arquivo de entrada
 void contarFrequencias(const char *nomeArquivo, unsigned int frequencias[]) {
-    FILE *arquivo = fopen(nomeArquivo, "rb");
+    FILE *arquivo = fopen(nomeArquivo, "rb");// "rb" -> "read binary", lê o arquivo binario
     if (!arquivo) return;
 
     unsigned char buffer[TAMANHO_BUFFER];
     size_t bytesLidos;
 
+    //zera o vetor de frequencias, que vai contar quantas vezes o byte i aparece no arquivo
     memset(frequencias, 0, TAMANHO_TABELA * sizeof(unsigned int));
 
+   //lê o arquivo em blocos de tamanho = TAMANHO_BUFFER (definido como 4096 bytes)
+    //"byteslidos" recebe quantos bytes foram lidos
+    //vai até o final do arquivo
     while ((bytesLidos = fread(buffer, 1, TAMANHO_BUFFER, arquivo)) > 0) {
+
+        //para cada byte lido no buffer, incrementa sua frequencia no vetor
         for (size_t i = 0; i < bytesLidos; i++)
             frequencias[buffer[i]]++;
     }
+
+    //fecha o arquivo
     fclose(arquivo);
 }
 
 // Constrói a árvore de Huffman
 No *construirArvoreHuffman(unsigned int frequencias[]) {
+
+    //cria uma lista onde os nós vão ser ordenados por frequencia
     ListaPrioridade lista;
     inicializarLista(&lista);
 
     // Insere os nós folha
+    //percorre a tabela
     for (int i = 0; i < TAMANHO_TABELA; i++) {
+        //para cada simbolo com frequencia > 0, cria uma folha para esse símbolo
+        //depois insere esse nó na lista ordenada por frequencia
         if (frequencias[i] > 0)
             inserirOrdenado(criarFolha((unsigned char)i, frequencias[i]), &lista);
     }
 
     // Combina nós até restar só a raiz
+    //enquanto houver mais de um nó na lista
     while (lista.tamanho > 1) {
+        //remove os dois nós com menor frequencia (dois primeiros)
         No *esquerdo = removerPrimeiro(&lista);
         No *direito = removerPrimeiro(&lista);
+
+        //cria nó interno somando essas frequencias
         inserirOrdenado(criarNoInterno(esquerdo, direito), &lista);
     }
 
+    //retorna a raíz da arvore
     return lista.inicio;
 }
 
-// ============================
-// GERAÇÃO DE CÓDIGOS DE HUFFMAN
-// ============================
+// ====================================================================
+// Gerar código Huffman
+// ====================================================================
 
 // Gera os códigos de Huffman recursivamente (caminho = código)
 void gerarCodigos(No *no, char caminho[], int posicao, char tabelaCodigos[TAMANHO_TABELA][TAMANHO_TABELA]) {
+    //se não tem nó na esquerda nem na direita, finaliza o caminho do código do caractere
     if (!no->esquerda && !no->direita) {
         caminho[posicao] = '\0'; // finaliza a string do código
         strcpy(tabelaCodigos[no->simbolo], caminho); // salva na tabela
         return;
     }
     if (no->esquerda) {
+        //se tiver nó na esquerda, adiciona um 0 no caminho co caractere
         caminho[posicao] = '0';
+        //recursivamente
         gerarCodigos(no->esquerda, caminho, posicao + 1, tabelaCodigos);
     }
     if (no->direita) {
+        //se tiver nó na direita, adiciona um 1 no caminho do caractere
         caminho[posicao] = '1';
+        //recursivamente
         gerarCodigos(no->direita, caminho, posicao + 1, tabelaCodigos);
     }
 }
 
-// ============================
-// CONTROLE DE BITS
-// ============================
+// ====================================================================
+// Controlar bits
+// ====================================================================
 
 // Inicializa estrutura de controle bit a bit
 void inicializarControlador(ControladorBits *controlador, FILE *arquivo) {
+    //define o arquivo a ser liddo
     controlador->arquivo = arquivo;
+    //buffer inicialmente em 0
     controlador->buffer = 0;
+    //não foram escritos nenhum bit ainda
     controlador->bitsEscritos = 0;
     controlador->totalBits = 0;
 }
 
 // Escreve 1 bit no buffer
 void escreverBit(ControladorBits *controlador, int bit) {
+    //shift left no buffer (dando espaço pra mais 1 bit)
     controlador->buffer = (controlador->buffer << 1) | (bit & 1);
+    //incrementa o numero de bits acumulados no buffer atual
     controlador->bitsEscritos++;
+    //incrementa o total de bits escritos no arquivo durante a compressão
+    //usado no final para calcular quantos bits de "lixo" foram adicionados
     controlador->totalBits++;
 
+    //quando o total de bits no buffer é 8, escreve 1 byte no arquivo
+    //após isso, zera novamente para ler mais bits
     if (controlador->bitsEscritos == 8) {
         fputc(controlador->buffer, controlador->arquivo);
         controlador->buffer = 0;
@@ -169,38 +207,50 @@ void escreverBit(ControladorBits *controlador, int bit) {
 }
 
 // Finaliza escrita (preenche o último byte com 0s)
+//útil quando a quantidade de bits não é suficiente para formar um byte
+//evita que fiquem bits soltos e permite com que a descompactação saiba quantos bits devem ser ignorados no ultimo byte
 void finalizarEscrita(ControladorBits *controlador) {
+    //preenche os bits restantes com 0
     if (controlador->bitsEscritos > 0) {
         controlador->buffer <<= (8 - controlador->bitsEscritos);
         fputc(controlador->buffer, controlador->arquivo);
     }
 }
 
-// ============================
-// ESCRITA DA ÁRVORE NO ARQUIVO
-// ============================
+// ====================================================================
+// Escrever a Árvore no arquivo
+// ====================================================================
 
 // Escreve árvore usando pré-ordem
 int escreverArvore(No *no, FILE *arquivo) {
+    //se o nó for uma folha
     if (!no->esquerda && !no->direita) {
+        //se o simbolo for * ou \\ usa caractere de escape
         if (no->simbolo == '*' || no->simbolo == '\\') {
             fputc('\\', arquivo); // escape de símbolos especiais
-            fputc(no->simbolo, arquivo);
-            return 2;
+            fputc(no->simbolo, arquivo); // escreve o simbolo real do nó
+            return 2;  // retorna que foram escritos dois caracteres
         } else {
+            //caso contrario, escreve com o simbolo correspondente
             fputc(no->simbolo, arquivo);
-            return 1;
+            return 1; //retorna que foi escrito um caractere
         }
     }
+
+    //se ofr um nó interno, escreve "*" e continua recursivamente com os filhos
     fputc('*', arquivo);
+
+    //escreve subarvores esquerda e direita
     int tamEsquerdo = escreverArvore(no->esquerda, arquivo);
     int tamDireito = escreverArvore(no->direita, arquivo);
+
+    //retorna o tamanho total escrito ((1 do '*' + tamanho dos filhos)
     return 1 + tamEsquerdo + tamDireito;
 }
 
-// ============================
-// COMPACTAÇÃO PRINCIPAL
-// ============================
+// ====================================================================
+// Compactar arquivo
+// ====================================================================
 
 void compactarHuffman(const char *nomeEntrada, const char *nomeSaida) {
     unsigned int frequencias[TAMANHO_TABELA] = {0};
@@ -252,9 +302,9 @@ void compactarHuffman(const char *nomeEntrada, const char *nomeSaida) {
     fclose(saida);
 }
 
-// ============================
-// DESCOMPACTAÇÃO
-// ============================
+// ====================================================================
+// Descompactar
+// ====================================================================
 
 // Lê cabeçalho: extrai lixo e tamanho da árvore
 void lerCabecalho(FILE *arquivo, int *bitsLixo, int *tamanhoArvore) {
@@ -335,9 +385,9 @@ void descompactarHuffman(const char *nomeEntrada, const char *nomeSaida) {
     fclose(saida);
 }
 
-// ============================
-// INTERFACE DO USUÁRIO
-// ============================
+// ====================================================================
+// Menu
+// ====================================================================
 
 void gerarNomeArquivoComExtensaoHuff(char *arquivoEntrada, char *arquivoSaida) {
     strcpy(arquivoSaida, arquivoEntrada);
