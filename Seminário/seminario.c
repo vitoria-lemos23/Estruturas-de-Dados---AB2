@@ -3,64 +3,134 @@
 #include <string.h>
 
 #define MAX 1000
-#define MAX_ARESTAS 10000
 
+// Estrutura que representa um nó da lista de adjacência.
+// Cada vértice do grafo terá uma lista de vértices conectados a ele.
+typedef struct adj_list {
+    int item;
+    struct adj_list* next;
+} adj_list;
+
+// Estrutura do grafo principal.
 typedef struct {
-    char tipo;        // 'U' para usuário ou 'F' para filme
-    char nome[50];
-} Vertex;
+    adj_list* vertices[MAX];  // Lista de adjacência para cada vértice
+    short visited[MAX];       // Vetor de visitados (pode ser usado em BFS/DFS)
+    char tipo[MAX];           // Tipo do vértice: 'U' para usuário, 'F' para filme
+    char nome[MAX][50];       // Nome associado a cada vértice
+    int total_vertices;       // Quantidade atual de vértices
+} graph;
 
-typedef struct {
-    int origem;
-    int destino;
-} Aresta;
+// Função que aloca e inicializa um grafo vazio
+graph* create_graph() {
+    graph* g = malloc(sizeof(graph));
 
-Vertex grafo[MAX];
-Aresta arestas[MAX_ARESTAS];
-int total_vertices = 0;
-int total_arestas = 0;
+    // Inicializa todos os ponteiros da lista de adjacência como NULL
+    // e o vetor de visitados como 0
+    for (int i = 0; i < MAX; i++) {
+        g->vertices[i] = NULL;
+        g->visited[i] = 0;
+    }
 
-int add_vertex(char tipo, char* nome) {
-    grafo[total_vertices].tipo = tipo;
-    strcpy(grafo[total_vertices].nome, nome);
-    return total_vertices++;
+    g->total_vertices = 0;
+    return g;
 }
 
-void add_edge(int user, int movie) {
-    arestas[total_arestas].origem = user;
-    arestas[total_arestas].destino = movie;
-    total_arestas++;
+// Adiciona um novo vértice (usuário ou filme) ao grafo
+int add_vertex(graph* g, char tipo, const char* nome) {
+    int id = g->total_vertices++; // ID será o índice atual (quantidade de vertices já existentes, depois incrementa )
+    g->tipo[id] = tipo;           // Define o tipo do vértice no indice correspondente ao mesmo no vetor de tipos do grafo
+    strcpy(g->nome[id], nome);    // Copia o nome para o vetor de nomes do grafo, na posição correspondente ao indice
+    return id;                    // Retorna o ID do novo vértice
 }
 
-void recomendar_filmes(int user_id) {
-    int vistos[MAX] = {0};
-    int recomendados[MAX] = {0};
+//ex.: adicionar um novo usuário (o primeiro usuario)
+/*------------------------------------------------------------------------------------------
+    id = 0 (total de vertices incrementou, então depois disso será 1)
+    g->tipo[0] = U
+    g->nome[0] = nome_do_usuario
+    retorna 0 (id do usuario)
+-------------------------------------------------------------------------------------------*/
+//adicionar novo usuario
+/*------------------------------------------------------------------------------------------
+    id = 1 (total de vertices incrementou, então depois disso será 2)
+    g->tipo[1] = U
+    g->nome[1] = nome_do_usuario2
+    retorna 1 (id do usuario2)
+-------------------------------------------------------------------------------------------*/
 
-    for (int i = 0; i < total_arestas; i++) {
-        if (arestas[i].origem == user_id && grafo[arestas[i].destino].tipo == 'F') {
-            vistos[arestas[i].destino] = 1;
-        }
-        if (arestas[i].destino == user_id && grafo[arestas[i].origem].tipo == 'F') {
-            vistos[arestas[i].origem] = 1;
+// Cria uma aresta entre dois vértices (ligação bidirecional entre usuário e filme)
+//é chamada quando o usuario adiciona um registro de filme assistido
+void add_edge(graph* g, int origem, int destino) {
+    adj_list* novo = malloc(sizeof(adj_list)); // Cria novo nó da lista
+    novo->item = destino;                      // o item desse nó vai ser o id do filme assistido
+    novo->next = g->vertices[origem];          // se a lista estiver vazia, novo->next aponta para null, caso não, novo->next vai ser a cabeça da lista
+    g->vertices[origem] = novo; //agora o vetor com o indice do usuário, aponta para o novo nó
+}
+//obs, o mesmo processo é feito para origem e destino trocando de posição, para que o grafo seja bidirecional
+
+// Lista os vértices do grafo, separando usuários e filmes
+void listar_vertices(graph* g) {
+    printf("\n=== Usuários ===\n");
+
+    // Percorre todos os vértices e imprime os que são usuários
+    for (int i = 0; i < g->total_vertices; i++) {
+        if (g->tipo[i] == 'U')
+            printf("ID: %d - Nome: %s\n", i, g->nome[i]);
+    }
+
+    printf("\n=== Filmes ===\n");
+
+    // Percorre todos os vértices e imprime os que são filmes
+    for (int i = 0; i < g->total_vertices; i++) {
+        if (g->tipo[i] == 'F')
+            printf("ID: %d - Nome: %s\n", i, g->nome[i]);
+    }
+}
+
+// Gera recomendações de filmes para um usuário com base em outros usuários
+void recomendar_filmes(graph* g, int user_id) {
+    short vistos[MAX] = {0};        // Vetor de filmes já assistidos pelo usuário
+    short recomendados[MAX] = {0};  // Vetor de filmes a recomendar
+
+    // === PASSO 1: Identificar filmes que o usuário já assistiu ===
+    for (adj_list* a = g->vertices[user_id]; a != NULL; a = a->next) {
+        //percorre todos os nós da lista desse usuário
+        if (g->tipo[a->item] == 'F') {
+            //se o tipo do nó for um filme, adiciona no vetor de vistos
+            vistos[a->item] = 1;
+
+            /*
+                Ex.: Nó cujo item é 5, é um filme
+                g->tipo[5] = F
+                Vistos[5] = 1 // O filme de item 5 foi visto pelo usuário
+            */
         }
     }
 
-    for (int i = 0; i < total_arestas; i++) {
-        if ((arestas[i].origem == user_id && grafo[arestas[i].destino].tipo == 'F') ||
-            (arestas[i].destino == user_id && grafo[arestas[i].origem].tipo == 'F')) {
+    // === PASSO 2: Para cada filme que o usuário viu... ===
+    for (int i = 0; i < g->total_vertices; i++) {
+        //percorre todos os vértices do grafo
+        if (vistos[i]) {
+            //se esse vertice está no vetor de vistos
 
-            int filme_visto = (grafo[arestas[i].destino].tipo == 'F') ? arestas[i].destino : arestas[i].origem;
+            // ...procurar todos os usuários que também viram esse filme
+            for (adj_list* a = g->vertices[i]; a != NULL; a = a->next) {
+                //percorre a lista ligada a esse filme
+                int outro_usuario = a->item;
+                //os itens dessa lista serão os outros usuarios que viram o filme
 
-            for (int j = 0; j < total_arestas; j++) {
-                if (arestas[j].destino == filme_visto && grafo[arestas[j].origem].tipo == 'U' && arestas[j].origem != user_id) {
-                    int outro_usuario = arestas[j].origem;
+                // Verifica se é um usuário diferente do atual
+                if (g->tipo[outro_usuario] == 'U' && outro_usuario != user_id) {
 
-                    for (int k = 0; k < total_arestas; k++) {
-                        if (arestas[k].origem == outro_usuario && grafo[arestas[k].destino].tipo == 'F' && !vistos[arestas[k].destino]) {
-                            recomendados[arestas[k].destino] = 1;
-                        }
-                        if (arestas[k].destino == outro_usuario && grafo[arestas[k].origem].tipo == 'F' && !vistos[arestas[k].origem]) {
-                            recomendados[arestas[k].origem] = 1;
+                    // Para cada filme que esse outro usuário assistiu...
+                    for (adj_list* b = g->vertices[outro_usuario]; b != NULL; b = b->next) {
+                        //percorre a lista desse outro usuario
+                        int possivel = b->item;
+                        //os itens vão ser as outras possibilidades de filme
+
+                        // ...se for filme e ainda não foi visto, marcar como recomendação
+                        if (g->tipo[possivel] == 'F' && !vistos[possivel]) {
+                            recomendados[possivel] = 1;
                         }
                     }
                 }
@@ -68,47 +138,28 @@ void recomendar_filmes(int user_id) {
         }
     }
 
-    printf("\nFilmes recomendados para %s:\n", grafo[user_id].nome);
+    // === PASSO 3: Imprimir as recomendações ===
+    printf("\nFilmes recomendados para %s:\n", g->nome[user_id]);
     int encontrou = 0;
-    for (int i = 0; i < total_vertices; i++) {
+
+    // Percorre todos os vértices e imprime os marcados como recomendados
+    for (int i = 0; i < g->total_vertices; i++) {
         if (recomendados[i]) {
-            printf("- %s\n", grafo[i].nome);
+            printf("- %s\n", g->nome[i]);
             encontrou = 1;
         }
     }
-    if (!encontrou) {
+
+    // Caso nenhuma recomendação tenha sido encontrada
+    if (!encontrou)
         printf("(Nenhuma recomendação encontrada)\n");
-    }
 }
 
-void listar_vertices() {
-    printf("\n=== Usuários ===\n");
-    for (int i = 0; i < total_vertices; i++) {
-        if (grafo[i].tipo == 'U') {
-            printf("ID: %d - Nome: %s\n", i, grafo[i].nome);
-        }
-    }
-    
-    printf("\n=== Filmes ===\n");
-    for (int i = 0; i < total_vertices; i++) {
-        if (grafo[i].tipo == 'F') {
-            printf("ID: %d - Nome: %s\n", i, grafo[i].nome);
-        }
-    }
-}
-
-void pausar() {
-    int c;
-    printf("\nPressione ENTER duas vezes para voltar ao menu...");
-    while ((c = getchar()) != '\n' && c != EOF) {}
-    getchar();
-}
-
-// Função que lê um arquivo e carrega usuários, filmes e assistidos
-void carregar_dados(const char* nome_arquivo) {
+// Carrega dados iniciais de um arquivo
+void carregar_dados(graph* g, const char* nome_arquivo) {
     FILE* arquivo = fopen(nome_arquivo, "r");
-    if (arquivo == NULL) {
-        printf("Erro ao abrir o arquivo '%s'\n", nome_arquivo);
+    if (!arquivo) {
+        printf("Erro ao abrir arquivo '%s'\n", nome_arquivo);
         return;
     }
 
@@ -116,30 +167,39 @@ void carregar_dados(const char* nome_arquivo) {
     char nome[50];
     int user_id, movie_id;
 
+    // Lê o arquivo linha por linha
     while (fscanf(arquivo, " %c", &tipo) != EOF) {
         if (tipo == 'U' || tipo == 'F') {
-            fscanf(arquivo, " %[^\n]", nome); // Lê o nome até a quebra de linha
-            add_vertex(tipo, nome);
+            fscanf(arquivo, " %[^\n]", nome); // Lê nome com espaços
+            add_vertex(g, tipo, nome);        // Adiciona ao grafo
         } else if (tipo == 'A') {
             fscanf(arquivo, "%d %d", &user_id, &movie_id);
-            add_edge(user_id, movie_id);
+            add_edge(g, user_id, movie_id);   // Ligação usuário-filme
+            add_edge(g, movie_id, user_id);   // Ligação filme-usuário
         }
     }
 
     fclose(arquivo);
-    printf("Dados carregados com sucesso do arquivo '%s'!\n", nome_arquivo);
-    pausar();
+    printf("Dados carregados com sucesso!\n");
 }
 
+// Função auxiliar para pausar a execução
+void pausar() {
+    int c;
+    printf("\nPressione ENTER duas vezes para voltar ao menu...");
+    while ((c = getchar()) != '\n' && c != EOF) {}
+    getchar(); // Aguarda segunda tecla ENTER
+}
+
+// Exibe o menu principal do sistema
 void menu() {
-    printf("\n");
-    printf("╔════════════════════════════════════════════╗\n");
+    printf("\n╔════════════════════════════════════════════╗\n");
     printf("║      SISTEMA DE RECOMENDAÇÃO DE FILMES     ║\n");
     printf("╠════════════════════════════════════════════╣\n");
     printf("║  (1) Adicionar novo usuário                ║\n");
     printf("║  (2) Adicionar novo filme                  ║\n");
-    printf("║  (3) Registrar filme assistido por usuário ║\n");
-    printf("║  (4) Recomendar filme                      ║\n");
+    printf("║  (3) Registrar filme assistido             ║\n");
+    printf("║  (4) Recomendar filmes                     ║\n");
     printf("║  (5) Listar usuários e filmes              ║\n");
     printf("║  (6) Carregar dados de arquivo             ║\n");
     printf("║  (0) Sair                                  ║\n");
@@ -147,77 +207,85 @@ void menu() {
     printf("Escolha uma opção: ");
 }
 
+// Função principal do programa
 int main() {
+    graph* g = create_graph(); // Cria o grafo principal
     int opcao;
     char nome[50];
     int user_id, movie_id;
     char nome_arquivo[100];
 
     do {
-        menu();
+        menu();            // Exibe o menu
         scanf("%d", &opcao);
-        getchar();
+        getchar();         // Consome o ENTER após o número
 
-        if (opcao < 0 || opcao > 6) {
-            printf("Opção inválida detectada. Encerrando para segurança.\n");
-            return 1;
-        }
-        
         switch (opcao) {
             case 1:
-                printf("\nDigite o nome do usuário: ");
+                // Adiciona novo usuário
+                printf("\nNome do usuário: ");
                 fgets(nome, 50, stdin);
                 nome[strcspn(nome, "\n")] = 0;
-                add_vertex('U', nome);
+                add_vertex(g, 'U', nome);
                 printf("Usuário adicionado com sucesso!\n");
                 pausar();
                 break;
 
             case 2:
-                printf("\nDigite o nome do filme: ");
+                // Adiciona novo filme
+                printf("\nNome do filme: ");
                 fgets(nome, 50, stdin);
                 nome[strcspn(nome, "\n")] = 0;
-                add_vertex('F', nome);
+                add_vertex(g, 'F', nome);
                 printf("Filme adicionado com sucesso!\n");
                 pausar();
                 break;
 
             case 3:
-                listar_vertices();
-                printf("\nDigite o ID do usuário: ");
+                // Registra que um usuário assistiu um filme
+                listar_vertices(g);
+                printf("\nID do usuário: ");
                 scanf("%d", &user_id);
-                printf("Digite o ID do filme: ");
+                printf("ID do filme: ");
                 scanf("%d", &movie_id);
-                add_edge(user_id, movie_id);
-                printf("Registro adicionado com sucesso!\n");
+                add_edge(g, user_id, movie_id);
+                add_edge(g, movie_id, user_id);
+                printf("Registro realizado!\n");
                 pausar();
                 break;
 
             case 4:
-                listar_vertices();
-                printf("\nDigite o ID do usuário para recomendações: ");
+                // Recomenda filmes para um usuário
+                listar_vertices(g);
+                printf("\nID do usuário para recomendação: ");
                 scanf("%d", &user_id);
-                recomendar_filmes(user_id);
+                recomendar_filmes(g, user_id);
                 pausar();
                 break;
 
             case 5:
-                listar_vertices();
+                // Lista todos os usuários e filmes
+                listar_vertices(g);
                 pausar();
                 break;
 
             case 6:
-                printf("\nDigite o nome do arquivo para carregar dados: ");
+                // Carrega dados de um arquivo texto
+                printf("\nNome do arquivo: ");
                 fgets(nome_arquivo, 100, stdin);
                 nome_arquivo[strcspn(nome_arquivo, "\n")] = 0;
-                carregar_dados(nome_arquivo);
+                carregar_dados(g, nome_arquivo);
+                pausar();
                 break;
 
             case 0:
                 printf("\nSaindo...\n");
                 break;
+
+            default:
+                printf("Opção inválida.\n");
         }
-    } while (opcao != 0);
+    } while (opcao != 0); // Continua até o usuário digitar 0 (sair)
 
     return 0;
 }
