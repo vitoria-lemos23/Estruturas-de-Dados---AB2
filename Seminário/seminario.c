@@ -25,7 +25,7 @@ graph* create_graph() {
     graph* g = malloc(sizeof(graph));
 
     // Inicializa todos os ponteiros da lista de adjacência como NULL
-    // e o vetor de visitados como 0
+    // E o vetor de visitados como 0
     for (int i = 0; i < MAX; i++) {
         g->vertices[i] = NULL;
         g->visited[i] = 0;
@@ -43,30 +43,15 @@ int add_vertex(graph* g, char tipo, const char* nome) {
     return id;                    // Retorna o ID do novo vértice
 }
 
-//ex.: adicionar um novo usuário (o primeiro usuario)
-/*------------------------------------------------------------------------------------------
-    id = 0 (total de vertices incrementou, então depois disso será 1)
-    g->tipo[0] = U
-    g->nome[0] = nome_do_usuario
-    retorna 0 (id do usuario)
--------------------------------------------------------------------------------------------*/
-//adicionar novo usuario
-/*------------------------------------------------------------------------------------------
-    id = 1 (total de vertices incrementou, então depois disso será 2)
-    g->tipo[1] = U
-    g->nome[1] = nome_do_usuario2
-    retorna 1 (id do usuario2)
--------------------------------------------------------------------------------------------*/
-
 // Cria uma aresta entre dois vértices (ligação bidirecional entre usuário e filme)
-//é chamada quando o usuario adiciona um registro de filme assistido
+// É chamada quando o usuario adiciona um registro de filme assistido
 void add_edge(graph* g, int origem, int destino) {
     adj_list* novo = malloc(sizeof(adj_list)); // Cria novo nó da lista
-    novo->item = destino;                      // o item desse nó vai ser o id do filme assistido
-    novo->next = g->vertices[origem];          // se a lista estiver vazia, novo->next aponta para null, caso não, novo->next vai ser a cabeça da lista
-    g->vertices[origem] = novo; //agora o vetor com o indice do usuário, aponta para o novo nó
+    novo->item = destino;                      // O item desse nó vai ser o id do filme assistido
+    novo->next = g->vertices[origem];          // Se a lista estiver vazia, novo->next aponta para null, caso não, novo->next vai ser a cabeça da lista
+    g->vertices[origem] = novo; // Agora o vetor com o indice do usuário, aponta para o novo nó
 }
-//obs, o mesmo processo é feito para origem e destino trocando de posição, para que o grafo seja bidirecional
+// OBS.: o mesmo processo é feito para origem e destino trocando de posição, para que o grafo seja bidirecional
 
 // Lista os vértices do grafo, separando usuários e filmes
 void listar_vertices(graph* g) {
@@ -92,43 +77,34 @@ void recomendar_filmes(graph* g, int user_id) {
     short vistos[MAX] = {0};        // Vetor de filmes já assistidos pelo usuário
     short recomendados[MAX] = {0};  // Vetor de filmes a recomendar
 
-    // === PASSO 1: Identificar filmes que o usuário já assistiu ===
+    // Identifica os filmes que o usuário já assistiu 
     for (adj_list* a = g->vertices[user_id]; a != NULL; a = a->next) {
-        //percorre todos os nós da lista desse usuário
+        // Percorre todos os nós da lista desse usuário
         if (g->tipo[a->item] == 'F') {
-            //se o tipo do nó for um filme, adiciona no vetor de vistos
+            // Se o tipo do nó for um filme, adiciona no vetor de vistos
             vistos[a->item] = 1;
-
-            /*
-                Ex.: Nó cujo item é 5, é um filme
-                g->tipo[5] = F
-                Vistos[5] = 1 // O filme de item 5 foi visto pelo usuário
-            */
         }
     }
 
-    // === PASSO 2: Para cada filme que o usuário viu... ===
+    // Verificar cada filme que o usuário viu
     for (int i = 0; i < g->total_vertices; i++) {
-        //percorre todos os vértices do grafo
+        // Percorre todos os vértices do grafo
         if (vistos[i]) {
-            //se esse vertice está no vetor de vistos
-
-            // ...procurar todos os usuários que também viram esse filme
+            // Se esse vertice está no vetor de vistos, procurar todos os usuários que também viram esse filme
             for (adj_list* a = g->vertices[i]; a != NULL; a = a->next) {
-                //percorre a lista ligada a esse filme
+                // Percorre a lista ligada a esse filme
                 int outro_usuario = a->item;
-                //os itens dessa lista serão os outros usuarios que viram o filme
+                // Os itens dessa lista (do vertice filme) serão os outros usuarios que viram o filme
 
                 // Verifica se é um usuário diferente do atual
                 if (g->tipo[outro_usuario] == 'U' && outro_usuario != user_id) {
 
-                    // Para cada filme que esse outro usuário assistiu...
+                    // Para cada filme que esse outro usuário assistiu, percorre a lista desse outro usuario
                     for (adj_list* b = g->vertices[outro_usuario]; b != NULL; b = b->next) {
-                        //percorre a lista desse outro usuario
                         int possivel = b->item;
-                        //os itens vão ser as outras possibilidades de filme
+                        //Os itens vão ser as outras possibilidades de filme
 
-                        // ...se for filme e ainda não foi visto, marcar como recomendação
+                        // Se for filme e ainda não foi visto, marcar como recomendação
                         if (g->tipo[possivel] == 'F' && !vistos[possivel]) {
                             recomendados[possivel] = 1;
                         }
@@ -138,7 +114,7 @@ void recomendar_filmes(graph* g, int user_id) {
         }
     }
 
-    // === PASSO 3: Imprimir as recomendações ===
+    // Imprimir as recomendações
     printf("\nFilmes recomendados para %s:\n", g->nome[user_id]);
     int encontrou = 0;
 
@@ -191,7 +167,7 @@ void pausar() {
     getchar(); // Aguarda segunda tecla ENTER
 }
 
-// Exibe o menu principal do sistema
+// Menu do sistema
 void menu() {
     printf("\n╔════════════════════════════════════════════╗\n");
     printf("║      SISTEMA DE RECOMENDAÇÃO DE FILMES     ║\n");
@@ -218,7 +194,7 @@ int main() {
     do {
         menu();            // Exibe o menu
         scanf("%d", &opcao);
-        getchar();         // Consome o ENTER após o número
+        getchar();      
 
         switch (opcao) {
             case 1:
