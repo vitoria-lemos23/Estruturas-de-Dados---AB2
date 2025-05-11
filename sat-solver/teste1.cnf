@@ -1,0 +1,9 @@
+c teste1.cnf
+c
+c UNSAT
+c
+p cnf 3 4
+-1 2 0
+1 2 0
+3 0
+-3 0
