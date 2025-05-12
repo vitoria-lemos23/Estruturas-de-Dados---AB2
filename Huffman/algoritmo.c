@@ -260,29 +260,40 @@ void decodificarBits(FILE *entrada, FILE *saida, No *raiz, int bitsLixo) {
     }
 }
 
-//REALIZAM A DESCOMPACTAÇÃO DE UM ARQUIVO
+// Descompacta um arquivo Huffman, lendo do arquivo de entrada e escrevendo no arquivo de saída
 void descompactarHuffman(const char *nomeEntrada, const char *nomeSaida) {
+    // Abre o arquivo compactado para leitura binária
     FILE *entrada = fopen(nomeEntrada, "rb");
-    if (!entrada) return;
+    if (!entrada) 
+        return;  // Se não conseguir abrir, aborta
 
+    // Abre/Cria o arquivo de saída para escrita binária
     FILE *saida = fopen(nomeSaida, "wb");
     if (!saida) {
         fclose(entrada);
-        return;
+        return;  // Se falhar, garante fechar o de entrada antes de sair
     }
 
+    // Lê os dois primeiros bytes e extrai:
+    //  - bitsLixo: quantos zeros foram adicionados no último byte
+    //  - tamanhoArvore: quantos bytes a serialização da árvore ocupa
     int bitsLixo, tamanhoArvore;
     lerCabecalho(entrada, &bitsLixo, &tamanhoArvore);
 
+    // Reconstrói a árvore de Huffman a partir dos próximos bytes (percurso pré-ordem)
     No *raiz = lerNo(entrada);
     if (!raiz) {
+        // Se não conseguir ler a árvore, aborta e fecha arquivos
         fclose(entrada);
         fclose(saida);
         return;
     }
 
+    // Percorre o fluxo de bits restante, decodificando cada bit
+    // e escrevendo símbolo a símbolo no arquivo de saída
     decodificarBits(entrada, saida, raiz, bitsLixo);
 
+    // Fecha ambos os arquivos ao final da operação
     fclose(entrada);
     fclose(saida);
 }
