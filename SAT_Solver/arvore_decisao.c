@@ -262,7 +262,7 @@ int main(int argc, char *argv[]) {
     // Exibe resultados
     if (solucao_encontrada) {
         for (int indice_variavel = 0; indice_variavel < formula->num_variaveis; indice_variavel++) {
-            printf("x%d = %d\n", 
+            printf("%d = %d\n", 
                 indice_variavel + 1, 
                 (atribuicoes[indice_variavel] == -1) ? 0 : atribuicoes[indice_variavel]
             );
